@@ -45,47 +45,11 @@ with col2:
 st.divider()
 
 # Load Model and Scaler
-# --- PATCH: Fix for Legacy Qiskit Model Loading ---
-import sys
-import types
-try:
-    # 1. Patch _zz_feature_map (Redirect to new location)
-    import qiskit.circuit.library.data_preparation
-    from qiskit.circuit.library.data_preparation import zz_feature_map
-    sys.modules['qiskit.circuit.library.data_preparation._zz_feature_map'] = zz_feature_map
-
-    # 2. Patch _OuterCircuitScopeInterface (Mock missing class)
-    import qiskit.circuit.quantumcircuit
-    class _OuterCircuitScopeInterface:
-        pass
-    qiskit.circuit.quantumcircuit._OuterCircuitScopeInterface = _OuterCircuitScopeInterface
-
-    # 3. Patch qiskit._accelerate.circuit (Mock missing internal module)
-    # The pickle expects 'qiskit._accelerate.circuit', but _accelerate is now a flat binary.
-    # We create a fake module and inject it.
-    fake_accelerate_circuit = types.ModuleType('qiskit._accelerate.circuit')
-    
-    # Add the missing 'CircuitData' class to this fake module
-    class CircuitData:
-        pass
-    fake_accelerate_circuit.CircuitData = CircuitData
-
-    sys.modules['qiskit._accelerate.circuit'] = fake_accelerate_circuit
-    
-    # Also try to attach it to the parent if possible
-    import qiskit._accelerate
-    setattr(qiskit._accelerate, 'circuit', fake_accelerate_circuit)
-
-except ImportError:
-    print("Warning: Could not patch Qiskit modules. Model loading might fail.")
-except Exception as e:
-    print(f"Warning: Error during patching: {e}")
-# --------------------------------------------------
-
 
 @st.cache_resource
 def load_model_scaler():
     try:
+
         # Load the saved model and scaler
         model = joblib.load('quantum_ensemble_model.pkl')
         scaler = joblib.load('scaler.pkl')
@@ -150,10 +114,58 @@ else:
                         close=data['Close'])])
         st.plotly_chart(fig, use_container_width=True)
         
-        # Placeholder for feature extraction
-        # We need to know EXACTLY what the 3 features are to automate this.
-        # usually it's something like (Close-Open), (High-Low), etc.
-        st.info("To predict on live data, we need to map the market data to the 3 required features. Update the code logic here once you verify feature engineering.")
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Feature Engineering (Must match train_model.py EXACTLY)
+        # 1. Daily Return
+        data['Return'] = data['Close'].pct_change()
+        # 2. Volatility (5-day rolling std dev of returns)
+        data['Volatility'] = data['Return'].rolling(window=5).std()
+        # 3. Momentum (Close - Close 5 days ago)
+        data['Momentum'] = data['Close'] - data['Close'].shift(5)
+        
+        # Get the latest row
+        latest_data = data.iloc[-1]
+        
+        # Check for NaNs (e.g. if not enough history)
+        if pd.isna(latest_data['Return']) or pd.isna(latest_data['Volatility']) or pd.isna(latest_data['Momentum']):
+            st.warning("Not enough data to calculate features. Fetching more history...")
+        else:
+            st.subheader("Live Prediction for Next Trading Day")
+            
+            # Prepare input
+            inputs = np.array([[latest_data['Return'], latest_data['Volatility'], latest_data['Momentum']]])
+            
+            # Scale
+            try:
+                scaled_inputs = scaler.transform(inputs)
+                
+                # Predict
+                prediction = model.predict(scaled_inputs)
+                probability = model.predict_proba(scaled_inputs) if hasattr(model, "predict_proba") else None
+                
+                # Display Config
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Model Input: Return", f"{latest_data['Return']:.2%}")
+                    st.metric("Model Input: Volatility", f"{latest_data['Volatility']:.4f}")
+                    st.metric("Model Input: Momentum", f"{latest_data['Momentum']:.2f}")
+
+                with col2:
+                    if prediction[0] == 1:
+                        st.success("## 📈 BULLISH Signal")
+                        st.write("Model predicts price INCREASE.")
+                    else:
+                        st.error("## 📉 BEARISH Signal")
+                        st.write("Model predicts price DECREASE.")
+                    
+                    if probability is not None:
+                        prob_val = np.max(probability)*100
+                        st.progress(int(prob_val))
+                        st.caption(f"Confidence: {prob_val:.2f}%")
+                        
+            except Exception as e:
+                st.error(f"Prediction error: {e}")
         
     else:
         st.error("Failed to fetch data.")

@@ -45,9 +45,27 @@ with col2:
 st.divider()
 
 # Load Model and Scaler
+# --- PATCH: Fix for Legacy Qiskit Model Loading ---
+import sys
+import types
+try:
+    # ensuring qiskit is imported
+    import qiskit.circuit.library.data_preparation
+    
+    # The old model looks for '_zz_feature_map', but newer qiskit has 'zz_feature_map' (no underscore)
+    # We alias the new module to the old name in sys.modules so pickle finds it.
+    from qiskit.circuit.library.data_preparation import zz_feature_map
+    sys.modules['qiskit.circuit.library.data_preparation._zz_feature_map'] = zz_feature_map
+except ImportError:
+    print("Warning: Could not patch _zz_feature_map. Model loading might fail.")
+except Exception as e:
+    print(f"Warning: Error during patching: {e}")
+# --------------------------------------------------
+
 @st.cache_resource
-def load_models():
+def load_model_scaler():
     try:
+        # Load the saved model and scaler
         model = joblib.load('quantum_ensemble_model.pkl')
         scaler = joblib.load('scaler.pkl')
         return model, scaler

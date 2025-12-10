@@ -103,6 +103,10 @@ else:
     ticker = "^NSEI"
     data = yf.download(ticker, period="1mo", interval="1d")
     
+    # Fix for yfinance returning MultiIndex columns
+    if isinstance(data.columns, pd.MultiIndex):
+        data.columns = data.columns.get_level_values(0)
+    
     if not data.empty:
         st.write("Recent Data:", data.tail())
         

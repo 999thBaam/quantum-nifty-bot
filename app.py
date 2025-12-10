@@ -45,6 +45,36 @@ with col2:
 st.divider()
 
 # Load Model and Scaler
+# --- PATCH: Fix for Legacy Qiskit Model Loading ---
+import sys
+import types
+try:
+    # 1. Patch _zz_feature_map (Redirect to new location)
+    import qiskit.circuit.library.data_preparation
+    from qiskit.circuit.library.data_preparation import zz_feature_map
+    sys.modules['qiskit.circuit.library.data_preparation._zz_feature_map'] = zz_feature_map
+
+    # 2. Patch _OuterCircuitScopeInterface (Mock missing class)
+    import qiskit.circuit.quantumcircuit
+    class _OuterCircuitScopeInterface:
+        pass
+    qiskit.circuit.quantumcircuit._OuterCircuitScopeInterface = _OuterCircuitScopeInterface
+
+    # 3. Patch qiskit._accelerate.circuit (Mock missing internal module)
+    # The pickle expects 'qiskit._accelerate.circuit', but _accelerate is now a flat binary.
+    # We create a fake module and inject it.
+    fake_accelerate_circuit = types.ModuleType('qiskit._accelerate.circuit')
+    sys.modules['qiskit._accelerate.circuit'] = fake_accelerate_circuit
+    
+    # Also try to attach it to the parent if possible
+    import qiskit._accelerate
+    setattr(qiskit._accelerate, 'circuit', fake_accelerate_circuit)
+
+except ImportError:
+    print("Warning: Could not patch Qiskit modules. Model loading might fail.")
+except Exception as e:
+    print(f"Warning: Error during patching: {e}")
+# --------------------------------------------------
 
 
 @st.cache_resource

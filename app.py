@@ -64,6 +64,12 @@ try:
     # The pickle expects 'qiskit._accelerate.circuit', but _accelerate is now a flat binary.
     # We create a fake module and inject it.
     fake_accelerate_circuit = types.ModuleType('qiskit._accelerate.circuit')
+    
+    # Add the missing 'CircuitData' class to this fake module
+    class CircuitData:
+        pass
+    fake_accelerate_circuit.CircuitData = CircuitData
+
     sys.modules['qiskit._accelerate.circuit'] = fake_accelerate_circuit
     
     # Also try to attach it to the parent if possible

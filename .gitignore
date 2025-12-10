@@ -1,0 +1,7 @@
+venv/
+__pycache__/
+*.DS_Store
+*.pkl
+!.gitignore
+!quantum_ensemble_model.pkl
+!scaler.pkl

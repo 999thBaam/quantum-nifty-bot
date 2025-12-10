@@ -4,6 +4,6 @@ joblib
 yfinance
 pandas
 plotly
-qiskit==0.46.0
-qiskit-machine-learning==0.7.2
-qiskit-aer==0.13.3
+qiskit==0.44.3
+qiskit-machine-learning==0.6.0
+qiskit-aer==0.12.2

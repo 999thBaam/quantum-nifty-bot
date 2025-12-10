@@ -1,4 +1,6 @@
 venv/
+venv_debug/
+venv_debug_2/
 __pycache__/
 *.DS_Store
 *.pkl

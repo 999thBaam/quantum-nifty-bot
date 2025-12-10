@@ -144,9 +144,21 @@ else:
             try:
                 scaled_inputs = scaler.transform(inputs)
                 
+                # Dynamic Fix for QSVC missing predict_proba
+                if hasattr(model, 'voting') and model.voting == 'soft':
+                    # QSVC in 0.6.0 sometimes lacks predict_proba, breaking soft voting
+                    model.voting = 'hard'
+                
                 # Predict
                 prediction = model.predict(scaled_inputs)
-                probability = model.predict_proba(scaled_inputs) if hasattr(model, "predict_proba") else None
+                
+                # Try getting probability if possible (unlikely with hard voting, but safe)
+                probability = None
+                try:
+                    if hasattr(model, "predict_proba"):
+                         probability = model.predict_proba(scaled_inputs)
+                except:
+                    pass
                 
                 # Display Config
                 col1, col2 = st.columns(2)

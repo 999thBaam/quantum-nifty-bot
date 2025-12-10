@@ -56,6 +56,14 @@ try:
     # We alias the new module to the old name in sys.modules so pickle finds it.
     from qiskit.circuit.library.data_preparation import zz_feature_map
     sys.modules['qiskit.circuit.library.data_preparation._zz_feature_map'] = zz_feature_map
+
+    # --- PATCH 2: _OuterCircuitScopeInterface ---
+    # This class was removed in Qiskit 0.45.0 but persists in pickles from 0.44.x
+    import qiskit.circuit.quantumcircuit
+    class _OuterCircuitScopeInterface:
+        pass
+    qiskit.circuit.quantumcircuit._OuterCircuitScopeInterface = _OuterCircuitScopeInterface
+    
 except ImportError:
     print("Warning: Could not patch _zz_feature_map. Model loading might fail.")
 except Exception as e:

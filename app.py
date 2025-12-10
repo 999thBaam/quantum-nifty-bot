@@ -73,7 +73,9 @@ def load_model_scaler():
         st.error(f"Failed to load model/scaler: {e}")
         return None, None
 
-model, scaler = load_models()
+
+model, scaler = load_model_scaler()
+
 
 if not model or not scaler:
     st.stop()

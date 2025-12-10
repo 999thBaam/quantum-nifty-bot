@@ -114,7 +114,7 @@ else:
                         close=data['Close'])])
         st.plotly_chart(fig, use_container_width=True)
         
-        st.plotly_chart(fig, use_container_width=True)
+
         
         # Feature Engineering (Must match train_model.py EXACTLY)
         # 1. Daily Return
